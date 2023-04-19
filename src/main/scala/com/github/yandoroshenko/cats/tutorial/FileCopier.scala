@@ -1,11 +1,23 @@
 package com.github.yandoroshenko.cats.tutorial
 
 import cats.effect.{IO, Resource}
+import cats.syntax.all._
 import java.io._
 
 object FileCopier {
 
-  def transfer(origin: InputStream, destination: OutputStream): IO[Long] = ???
+  def transfer(origin: InputStream, destination: OutputStream): IO[Long] =
+    transmit(origin, destination, new Array[Byte](1024 * 10), 0L)
+
+  def transmit(origin: InputStream, destination: OutputStream, buffer: Array[Byte], acc: Long): IO[Long] =
+    for {
+      amount <- IO.blocking(origin.read(buffer, 0, buffer.size)
+      count <- if (amount > -1) {
+        IO.blocking(destination.write(buffer, 0, amount)) >> transmit(origin, destination, buffer, acc + amount)
+      } else {
+        IO.pure(acc)
+      }
+    } yield count
 
   def copy(origin: File, destination: File): IO[Long] =
     inputOutputStreams(origin, destination).use(transfer)
