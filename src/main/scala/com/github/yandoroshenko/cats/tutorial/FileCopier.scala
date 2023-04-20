@@ -11,7 +11,7 @@ object FileCopier {
 
   def transmit(origin: InputStream, destination: OutputStream, buffer: Array[Byte], acc: Long): IO[Long] =
     for {
-      amount <- IO.blocking(origin.read(buffer, 0, buffer.size)
+      amount <- IO.blocking(origin.read(buffer, 0, buffer.size))
       count <- if (amount > -1) {
         IO.blocking(destination.write(buffer, 0, amount)) >> transmit(origin, destination, buffer, acc + amount)
       } else {
