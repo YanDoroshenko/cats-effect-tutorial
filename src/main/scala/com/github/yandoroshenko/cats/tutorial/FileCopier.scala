@@ -26,14 +26,14 @@ object FileCopier {
     Resource.make {
       Sync[F].blocking(new FileInputStream(f))
     } { inStream =>
-      Sync[F].blocking(inStream.close()).handleErrorWith(_ => Sync[F].unit)
+      Sync[F].blocking(inStream.close())
     }
 
   def outputStream[F[_] : Sync](f: File): Resource[F, FileOutputStream] =
     Resource.make {
       Sync[F].blocking(new FileOutputStream(f))
     } { outStream =>
-      Sync[F].blocking(outStream.close()).handleErrorWith(_ => Sync[F].unit)
+      Sync[F].blocking(outStream.close())
     }
 
   def inputOutputStreams[F[_] : Sync](in: File, out: File): Resource[F, (FileInputStream, FileOutputStream)] =
