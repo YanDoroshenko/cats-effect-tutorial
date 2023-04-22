@@ -18,8 +18,8 @@ object MainApp extends IOApp {
           str <- IO.readLine
         } yield str.equalsIgnoreCase("y")
       } else IO.pure(true)
-      _ <- if (destination.exists() && !destination.canWrite()) IO.raiseError(new IllegalArgumentException("Destination file is not writeable!")) else IO.unit
-      _ <- if (execute) FileCopier.copy[IO](origin, destination).flatMap { count =>
+      _ <- if ((destination.isDirectory() || destination.exists()) && !destination.canWrite()) IO.raiseError(new IllegalArgumentException("Destination file is not writeable!")) else IO.unit
+      _ <- if (execute) FileCopier.copyRecursive[IO](origin, destination).flatMap { count =>
         IO.println(s"Copied $count bytes from ${origin.getPath} to ${destination.getPath}")
       } else IO.println("Aborting")
     } yield ExitCode.Success

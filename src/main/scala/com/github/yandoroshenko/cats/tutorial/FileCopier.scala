@@ -3,11 +3,12 @@ package com.github.yandoroshenko.cats.tutorial
 import cats.effect.{Sync, Resource}
 import cats.syntax.all._
 import java.io._
+import java.nio.file._
 
 object FileCopier {
 
-  def transfer[F[_] : Sync](origin: InputStream, destination: OutputStream): F[Long] =
-    transmit(origin, destination, new Array[Byte](1024 * 10), 0L)
+  def transfer[F[_] : Sync](origin: InputStream, destination: OutputStream, bufferSize: Int = 1024 * 10): F[Long] =
+    transmit(origin, destination, new Array[Byte](bufferSize), 0L)
 
   def transmit[F[_] : Sync](origin: InputStream, destination: OutputStream, buffer: Array[Byte], acc: Long): F[Long] =
     for {
@@ -20,7 +21,32 @@ object FileCopier {
     } yield count
 
   def copy[F[_] : Sync](origin: File, destination: File): F[Long] =
-    inputOutputStreams(origin, destination).use(transfer)
+    inputOutputStreams(origin, destination).use { (i, o) => transfer(i, o) }
+
+  def copyRecursive[F[_] : Sync](origin: File, destination: File): F[Map[String, Long]] = {
+    val originPath = origin.getAbsolutePath()
+
+    def iterate(from: File): F[Map[String, Long]] =
+      if (from.isDirectory()) {
+        from.listFiles().toSeq.map(iterate)
+          .sequence
+          .map(_.foldLeft(Map.empty[String, Long])(_ ++ _))
+      } else {
+        val relativePath = Paths.get(originPath).relativize(Paths.get(from.getAbsolutePath()))
+        val absolutePath = Paths.get(destination.getAbsolutePath()).resolve(relativePath)
+        val absoluteFile = absolutePath.toFile()
+
+        Sync[F].blocking(absoluteFile.getParentFile().mkdirs()) >>
+          copy(from, absoluteFile)
+            .map(relativePath.toString -> _)
+            .map {
+              case _ if from.isDirectory() => Map.empty
+              case p => Map(p)
+            }
+      }
+
+    iterate(origin)
+  }
 
   def inputStream[F[_] : Sync](f: File): Resource[F, FileInputStream] =
     Resource.make {
